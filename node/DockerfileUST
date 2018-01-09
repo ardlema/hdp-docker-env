@@ -2,8 +2,10 @@ FROM centos:7
 
 MAINTAINER Alberto Rodriguez <alberto.rodriguez@ust-global.com>
 
+ENV http_proxy proxy.tcpsi.es:8080
+ENV https_proxy proxy.tcpsi.es:8080
 RUN yum install -y java-1.8.0-openjdk
-RUN yum install -y java-1.8.0-openjdk-devel
+RUM yum install -y java-1.8.0-openjdk-devel
 RUN yum install -y ntp
 RUN yum install -y wget
 RUN yum install -y unzip
