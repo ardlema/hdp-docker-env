@@ -1,3 +1,15 @@
+BUILDING THE IMAGE
+------------------
+
+Lo primero que necesitamos es construir la imagen sobre la que correran nuestros nodos del cluster. Para ello nos movemos al directorio node y:
+
+Si estamos trabajando en las oficinas de UST necesitamos la imagen con las  variables de entorno que configuran el acceso por el proxy, por lo tanto tenemos que construir la imagen utilizando:
+
+docker build -f DockerfileUST -t hdpust:latest .
+
+Si no estamos trabajando por detrás de ningún proxy:
+
+docker build -t hdp:latest .
 
 RUNNING EXTERNAL POSTGRES
 -------------------------
@@ -59,6 +71,9 @@ http_proxy = http://proxy.tcpsi.es:8080/
 
 (--- UST ONLY ---)
 
+CONFIGURING AND RUNNING THE AMBARI SERVER
+-----------------------------------------
+
 Dentro del contenedor:
 
 ambari-server setup
@@ -74,7 +89,7 @@ Installer:
 
 Seleccionar 3 e introducir manualmente el jdk basepath (/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.151-5.b12.el7_4.x86_64/jre/)
 
-3. Enter advanced database configuration [y/n] (n)? y
+3. Enter advanced database configuration [y/n](n)? y
 
 Choose one of the following options:
 [1] - PostgreSQL (Embedded)
@@ -92,12 +107,16 @@ Hostname (localhost): postgres
 
 ambari-server start
 
+Mapear el host de docker en el /etc/hosts de la máquina en la que vamos a acceder a la interfaz de ambari
+
+
+Comprobar que el servidor funciona accediendo a: http://node1.tcpsi.es:8080 desde el navegador
+
 
 INSTALACIÓN ATLAS
 -----------------
 
-go to: /usr/hdp/current/atlas-server/server/webapp
-
-And then:
-
+cd /usr/hdp/current/atlas-server/server/webapp
+cp atlas.war atlas
+cd atlas
 jar -xvf atlas.war
