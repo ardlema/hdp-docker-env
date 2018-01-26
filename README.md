@@ -2,7 +2,7 @@
 
 This project allows to deploy a HortonWorks Data Platform locally using docker images.
 
-_**Important: I've deployed an HDP cluster using this approach as part of my work for UST Global Inc. for development purposes but is not recommended to use this in a production environment**_
+**_Disclaimer: Do not use this to deploy a production HDP environment. I've been using it for development purposes as part of my work for UST Global Inc._**
 
 # Building the images
 
