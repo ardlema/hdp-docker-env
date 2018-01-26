@@ -11,6 +11,8 @@ Si no estamos trabajando por detrás de ningún proxy:
 
 docker build -t hdp:latest .
 
+find $HOME -type f -exec grep -Hn 'http_proxy' {} \; 
+
 RUNNING EXTERNAL POSTGRES
 -------------------------
 
@@ -87,7 +89,7 @@ Installer:
 [2] Oracle JDK 1.7 + Java Cryptography Extension (JCE) Policy Files 7
 [3] Custom JDK
 
-Seleccionar 3 e introducir manualmente el jdk basepath (/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.151-5.b12.el7_4.x86_64/jre/)
+Seleccionar 3 e introducir manualmente el jdk basepath (/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64/jre/)
 
 3. Enter advanced database configuration [y/n](n)? y
 
@@ -107,6 +109,8 @@ Hostname (localhost): postgres
 
 ambari-server start
 
+ntpd
+
 Mapear el host de docker en el /etc/hosts de la máquina en la que vamos a acceder a la interfaz de ambari
 
 
@@ -120,3 +124,98 @@ cd /usr/hdp/current/atlas-server/server/webapp
 cp atlas.war atlas
 cd atlas
 jar -xvf atlas.war
+
+
+HDFS
+----
+
+Desde cualquier de los nodos en los que se haya instalado HDFS:
+
+su - hdfs
+
+Subir fichero:
+
+hdfs dfs -mkdir /data
+hdfs dfs -put tinytimesheet.csv /data/tinytimesheet.csv
+
+
+
+INSTALACIÓN HIVE USANDO UNA BASE DE DATOS EXISTENTE (POSTGRESQL)
+---------------------------------------------------------------
+
+Copiar el script al contenedor de postgres:
+
+docker cp SetupHiveDatabase.sql postgres:/
+
+Crear la base de datos:
+
+docker exec -it postgres bash
+
+psql -U postgres
+
+Run: 
+
+\i SetupHiveDatabase.sql
+\quit
+
+Ir al node donde este corriendo ambari-server y ejecutar:
+
+ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/share/java/postgresql-jdbc.jar
+
+
+(UST ONLY)
+
+En el nodo donde se haya instalado hive modificar la función force_download_file del fichero: /usr/lib/python2.6/site-packages/ambari_commons/inet_utils.py con las siguientes lineas:
+
+def force_download_file(link, destination, chunk_size = 16 * 1024, progress_func = None):
+  proxy_handler = urllib2.ProxyHandler({})
+  opener = urllib2.build_opener(proxy_handler)
+  urllib2.install_opener(opener)
+  request = urllib2.Request(link)
+
+Uso de beeline (MR): beeline -n hdfs -u "jdbc:hive2://node1.tcpsi.es:2181,node2.tcpsi.es:2181,node3.tcpsi.es:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2"
+
+
+CREATE TABLE timesheet (driverid string, week string, hourslogged string, mileslogged string) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
+LOAD DATA INPATH '/data/timesheet.csv' OVERWRITE INTO TABLE timesheet;
+
+Uso de beeline (Tez): beeline --hiveconf hive.execution.engine=tez -n hdfs -u "jdbc:hive2://node1.tcpsi.es:2181,node2.tcpsi.es:2181,node3.tcpsi.es:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2"
+
+
+SPARK
+-----
+
+Go to: /usr/hdp/current/spark2-client/bin/
+
+And execute: ./spark-shell --num-executors 2 --master yarn
+
+scala> val df = spark.read.format("csv").option("header","true").option("inferSchema","true").load("/data/tinytimesheet.csv")
+scala> case class Driver(driverid: Int, week: Int, hourslogged: Int, mileslogged: Int)
+scala> df.as[Driver]
+scala> ds.filter(e => e.driverid == 10 && e.week ==1).show
+
+
+
+ZEPPELIN
+--------
+
+
+Go to: http://node1.tcpsi.es:9995
+
+Login (admin/admin)
+
+Notebook:
+
+%spark2
+
+
+val df = spark.read.format("csv").option("header","true").option("inferSchema","true").load("/data/tinytimesheet.csv")
+
+
+z.show(df)
+
+
+
+
+
+
