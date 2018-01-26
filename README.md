@@ -1,31 +1,40 @@
-BUILDING THE IMAGE
-------------------
+# Description
 
-Lo primero que necesitamos es construir la imagen sobre la que correran nuestros nodos del cluster. Para ello nos movemos al directorio node y:
+This project allows to deploy a HortonWorks Data Platform locally using docker images.
 
-Si estamos trabajando en las oficinas de UST necesitamos la imagen con las  variables de entorno que configuran el acceso por el proxy, por lo tanto tenemos que construir la imagen utilizando:
+_**Important: I've deployed an HDP cluster using this approach as part of my work for UST Global Inc. for development purposes but is not recommended to use this in a production environment**_
 
-docker build -f DockerfileUST -t hdpust:latest .
+# Building the images
 
-Si no estamos trabajando por detrás de ningún proxy:
+The images have not been pushed to any dockerhub repo so you should build them by yourself.
+
+To do so, go to the docker folder and execute the following command:
 
 docker build -t hdp:latest .
 
-find $HOME -type f -exec grep -Hn 'http_proxy' {} \; 
+If you are working behind an http proxy please build your image using:
 
-RUNNING EXTERNAL POSTGRES
--------------------------
+docker build -f DockerfileProxy -t hdp:latest --build-arg HTTPPROXY=<your-proxy-host>:<your-proxy-port> --build-arg HTTPSPROXY=<your-proxy-host>:<your-proxy-port> .
+
+# Running the cluster
+
+## Run an external PostgreSQL database
+
+The Hortonworks Data Platform needs a database.
+
+We recommend to run a PostgreSQL database running also in a docker container. To start this container execute the following command:
 
 docker run --name postgres -e POSTGRES_PASSWORD=admin -d postgres:9.4
 
-COPY POSTGRESQL SCRIPTS TO POPULATE THE DATABASE
-------------------------------------------------
+## Populating the database
 
-docker cp SetupDatabase.sql postgres:/
-docker cp Ambari-DDL-Postgres-CREATE.sql postgres:/
+Before installing the platform we need to create the database schema for Ambari. To do so you need to copy the scripts included in the scripts folder to the docker containers by executing the following commands:
 
-ACCESING THE POSTGRES CONSOLE TO EXECUTE THE SCRIPTS
-----------------------------------------------------
+docker cp scripts/SetupDatabase.sql postgres:/
+docker cp scripts/Ambari-DDL-Postgres-CREATE.sql postgres:/
+
+Now go inside the container and execute the scripts by executing the following commands:
+
 
 docker exec -it postgres bash
 
@@ -36,52 +45,54 @@ Run: SetupDatabase con:
 \i SetupDatabase.sql
 \quit
 
-IMPORTANTE: desconectar de la base de datos y volverse a conectar como ambari!! y entonces:
 
 psql -U ambari
 
 \connect ambari 
 \i Ambari-DDL-Postgres-CREATE.sql
 
-List the tables and make sure that ambari is the owner:
-\dt                          
+Finally list the tables and make sure that ambari is the owner of all of them:
+\dt     
 
-RUNNING NODES
--------------
+## Starting a cluster node
 
-docker run --name=node1 -d -h node1.tcpsi.es --link postgres:postgres hdpnode:latest         
+To start the first cluster node execute the following:
+
+docker run --name=node1 -d -h node1.ust.com --link postgres:postgres hdp:latest         
+
+Again if you are working behind a proxy you should have a look at the lines below if not skip to the next section
+
+To configure your proxy go inside the container by executing:
+
+docker exec -it node1 bash
+
+And include in the java parameters of the Ambari server script (/var/lib/ambari-server/ambari-env.sh) the following ones:
+
+-Dhttp.proxyHost=<your-proxy-host>
+-Dhttp.proxyPort=<your-proxy-port>
 
 
-(--- UST ONLY ---)
+We also add the proxy in the /etc/yum.conf file by adding the following line:
 
-Necesitamos también configurar el proxy de UST en ambari porque si no no 
-será capaz de acceder a Internet, para ello añadimos los siguientes 
-parámetros en el script de ar
-ranque de Ambari en el fichero 
-/var/lib/ambari-server/ambari-env.sh:
--Dhttp.proxyHost=proxy.tcpsi.es 
--Dhttp.proxyPort=8080      
+proxy=http://<your-proxy-host>:<your-proxy-port>
 
-Metemos el proxy en /etc/yum.conf:
+And finally we add the proxy within the /etc/wgetrc by adding:
 
-proxy=http://proxy.tcpsi.es:8080
+https_proxy = https://<your-proxy-host>:<your-proxy-port>/
+http_proxy = http://<your-proxy-host>:<your-proxy-port>/
 
-Metemos el proxy también en /etc/wgetrc:
 
-https_proxy = https://proxy.tcpsi.es:8080/
-http_proxy = http://proxy.tcpsi.es:8080/
+## Setting up the Ambari server
 
-(--- UST ONLY ---)
-
-CONFIGURING AND RUNNING THE AMBARI SERVER
------------------------------------------
-
-Dentro del contenedor:
+Inside the node1 container execute:
 
 ambari-server setup
 
+And configure Ambari server with the following parameters:
+
 Installer:
 
+```
 1. Customize user account for ambari-server daemon [y/n](n)? n
 
 2. Checking JDK...
@@ -89,7 +100,7 @@ Installer:
 [2] Oracle JDK 1.7 + Java Cryptography Extension (JCE) Policy Files 7
 [3] Custom JDK
 
-Seleccionar 3 e introducir manualmente el jdk basepath (/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64/jre/)
+Select 3 and introduce the java base path (/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.161-0.b14.el7_4.x86_64/jre/)
 
 3. Enter advanced database configuration [y/n](n)? y
 
@@ -105,117 +116,34 @@ Choose one of the following options:
 Enter choice (1): 4
 
 Hostname (localhost): postgres
-(Resto de valores por defecto)
+(The rest of the values by default)
+```
+
+## Starting the Ambari server
+
+Before start the server and inside the container start the ntpd daemons by running:
+
+ntpd
+
+Then you can start the ambari server by running:
 
 ambari-server start
 
 ntpd
 
-Mapear el host de docker en el /etc/hosts de la máquina en la que vamos a acceder a la interfaz de ambari
+Map the host of the container in your local box by finding its IP address and access to the Ambari UI by typing the following on your preferred browser:
+
+http://node1.ust.com:8080
+
+Following the instructions on the Ambari UI to install your cluster
 
 
-Comprobar que el servidor funciona accediendo a: http://node1.tcpsi.es:8080 desde el navegador
+## Adding more nodes to the cluster
+
+To add more nodes to your cluster you just need to start more docker containers by executing for instance:
+
+docker run --name=node1 -d -h node2.ust.com --link postgres:postgres hdp:latest 
 
 
-INSTALACIÓN ATLAS
------------------
-
-cd /usr/hdp/current/atlas-server/server/webapp
-cp atlas.war atlas
-cd atlas
-jar -xvf atlas.war
-
-
-HDFS
-----
-
-Desde cualquier de los nodos en los que se haya instalado HDFS:
-
-su - hdfs
-
-Subir fichero:
-
-hdfs dfs -mkdir /data
-hdfs dfs -put tinytimesheet.csv /data/tinytimesheet.csv
-
-
-
-INSTALACIÓN HIVE USANDO UNA BASE DE DATOS EXISTENTE (POSTGRESQL)
----------------------------------------------------------------
-
-Copiar el script al contenedor de postgres:
-
-docker cp SetupHiveDatabase.sql postgres:/
-
-Crear la base de datos:
-
-docker exec -it postgres bash
-
-psql -U postgres
-
-Run: 
-
-\i SetupHiveDatabase.sql
-\quit
-
-Ir al node donde este corriendo ambari-server y ejecutar:
-
-ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/share/java/postgresql-jdbc.jar
-
-
-(UST ONLY)
-
-En el nodo donde se haya instalado hive modificar la función force_download_file del fichero: /usr/lib/python2.6/site-packages/ambari_commons/inet_utils.py con las siguientes lineas:
-
-def force_download_file(link, destination, chunk_size = 16 * 1024, progress_func = None):
-  proxy_handler = urllib2.ProxyHandler({})
-  opener = urllib2.build_opener(proxy_handler)
-  urllib2.install_opener(opener)
-  request = urllib2.Request(link)
-
-Uso de beeline (MR): beeline -n hdfs -u "jdbc:hive2://node1.tcpsi.es:2181,node2.tcpsi.es:2181,node3.tcpsi.es:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2"
-
-
-CREATE TABLE timesheet (driverid string, week string, hourslogged string, mileslogged string) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
-LOAD DATA INPATH '/data/timesheet.csv' OVERWRITE INTO TABLE timesheet;
-
-Uso de beeline (Tez): beeline --hiveconf hive.execution.engine=tez -n hdfs -u "jdbc:hive2://node1.tcpsi.es:2181,node2.tcpsi.es:2181,node3.tcpsi.es:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2"
-
-
-SPARK
------
-
-Go to: /usr/hdp/current/spark2-client/bin/
-
-And execute: ./spark-shell --num-executors 2 --master yarn
-
-scala> val df = spark.read.format("csv").option("header","true").option("inferSchema","true").load("/data/tinytimesheet.csv")
-scala> case class Driver(driverid: Int, week: Int, hourslogged: Int, mileslogged: Int)
-scala> df.as[Driver]
-scala> ds.filter(e => e.driverid == 10 && e.week ==1).show
-
-
-
-ZEPPELIN
---------
-
-
-Go to: http://node1.tcpsi.es:9995
-
-Login (admin/admin)
-
-Notebook:
-
-%spark2
-
-
-val df = spark.read.format("csv").option("header","true").option("inferSchema","true").load("/data/tinytimesheet.csv")
-
-
-z.show(df)
-
-
-
-
-
+**Important: if you add more nodes to the cluster you need to also add the node to the /etc/hosts file of all the containers!!**
 
