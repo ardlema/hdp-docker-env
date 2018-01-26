@@ -3,7 +3,7 @@ FROM centos:7
 MAINTAINER Alberto Rodriguez <alberto.rodriguez@ust-global.com>
 
 RUN yum install -y sudo && \
-    adduser hortonworks && \
+    useradd -m hortonworks && \
     echo "hortonworks ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/hortonworks && \
     chmod 0440 /etc/sudoers.d/hortonworks
 
@@ -26,10 +26,10 @@ RUN yum install -y mysql-connector-java
 RUN yum install -y snappy
 RUN ssh-keygen -A -t rsa -f /etc/ssh/ssh_host_rsa_key -N ''
 RUN cp /etc/ssh/ssh_host_rsa_key.pub /etc/ssh/authorized_keys
-RUN ssh-keygen -t rsa -f /hortonworks/.ssh/id_rsa -N ''
-RUN cp /hortonworks/.ssh/id_rsa.pub /hortonworks/.ssh/authorized_keys
+RUN ssh-keygen -t rsa -f /home/hortonworks/.ssh/id_rsa -N ''
+RUN cp /home/hortonworks/.ssh/id_rsa.pub /home/hortonworks/.ssh/authorized_keys
 RUN chmod 600 /etc/ssh/authorized_keys
-RUN chmod 600 /hortonworks/.ssh/authorized_keys
+RUN chmod 600 /home/hortonworks/.ssh/authorized_keys
 RUN /usr/sbin/sshd
 
 COPY scripts/start.sh /start.sh
