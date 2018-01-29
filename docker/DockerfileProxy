@@ -31,6 +31,7 @@ RUN yum install -y snappy
 RUN ssh-keygen -A -t rsa -f /etc/ssh/ssh_host_rsa_key -N ''
 RUN cp /etc/ssh/ssh_host_rsa_key.pub /etc/ssh/authorized_keys
 RUN mkdir /home/hortonworks/.ssh/
+RUN chown -R hortonworks:hortonworks .ssh
 RUN ssh-keygen -t rsa -f /home/hortonworks/.ssh/id_rsa -N ''
 RUN cp /home/hortonworks/.ssh/id_rsa.pub /home/hortonworks/.ssh/authorized_keys
 RUN chmod 600 /etc/ssh/authorized_keys
