@@ -173,3 +173,13 @@ docker run --name=node1 -d -h node2.ust.com --link postgres:postgres hdp:latest
 
 **Important: if you add more nodes to the cluster you need to also add the node to the /etc/hosts file of all the containers!!**
 
+## Adding HDF to the cluster
+
+To add the Hortonworks DataFlow features to the cluster, go to the node where you have installed the ambari server and execute the following commands:
+
+```
+cd /tmp
+wget http://public-repo-1.hortonworks.com/HDF/centos7/3.x/updates/3.1.1.0/tars/hdf_ambari_mp/hdf-ambari-mpack-3.1.1.0-35.tar.gz
+ambari-server install-mpack --mpack=/tmp/hdf-ambari-mpack-3.1.1.0-35.tar.gz  --verbose
+ambari-server restart
+```
