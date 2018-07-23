@@ -103,7 +103,13 @@ http_proxy = http://<your-proxy-host>:<your-proxy-port>/
 
 ## Setting up the Ambari server
 
-Inside the node1 container execute:
+Go to the node1 container by executing:
+
+```
+docker exec -it node1 bash
+```
+
+and then run the ambari server set-up command:
 
 ```
 ambari-server setup
