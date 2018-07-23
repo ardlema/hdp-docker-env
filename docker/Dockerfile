@@ -36,6 +36,6 @@ RUN /usr/sbin/sshd
 
 COPY scripts/start.sh /start.sh
 
-EXPOSE 22 8080
+EXPOSE 22 8080 8020 9000
 
 ENTRYPOINT ["/start.sh"]
