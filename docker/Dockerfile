@@ -17,7 +17,7 @@ RUN yum install -y unzip
 RUN wget https://jdbc.postgresql.org/download/postgresql-9.4.1212.jar -O /usr/share/java/postgresql-jdbc.jar
 RUN chmod 644 /usr/share/java/postgresql-jdbc.jar
 
-RUN wget -nv http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.6.1.0/ambari.repo -O /etc/yum.repos.d/ambari.repo
+RUN wget -nv http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.7.0.0/ambari.repo -O /etc/yum.repos.d/ambari.repo
 RUN yum install -y ambari-server
 RUN yum install -y ambari-agent
 RUN yum install -y openssh-server
